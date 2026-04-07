@@ -18,6 +18,7 @@ export default function Layout() {
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
             <Link to="/" className="hover:text-indigo-600 transition-colors">Home</Link>
             <Link to="/about" className="hover:text-indigo-600 transition-colors">About</Link>
+            <Link to="/contact" className="hover:text-indigo-600 transition-colors">Contact</Link>
           </nav>
         </div>
       </header>
@@ -39,7 +40,7 @@ export default function Layout() {
           <div className="flex justify-center gap-6 text-sm font-medium text-slate-400">
             <Link to="/about" className="hover:text-indigo-600">About</Link>
             <a href="#" className="hover:text-indigo-600">Privacy</a>
-            <a href="#" className="hover:text-indigo-600">Contact</a>
+            <Link to="/contact" className="hover:text-indigo-600">Contact</Link>
           </div>
         </div>
       </footer>

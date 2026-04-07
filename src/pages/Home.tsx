@@ -33,6 +33,8 @@ interface CollegeData {
   content: string;
   sources: { title: string; uri: string }[];
   imageUrl: string | null;
+  similarColleges: string[];
+  officialWebsite: string | null;
 }
 
 export default function Home() {
@@ -64,45 +66,64 @@ export default function Home() {
           4. 💰 Placement Data
           5. 📚 Curriculum & Academics
           6. 🗣️ Student Reviews & Vibe
-          7. 💡 Expert Advice`,
+          7. 💡 Expert Advice
+          8. 🔗 Similar Colleges`,
           config: {
             tools: [{ googleSearch: {} }],
             systemInstruction: `You are a "College Admission Expert" for 12th-grade PCM (Science A-Group) students in India. 
             Your goal is to provide deep, data-driven reviews of engineering colleges to help them make informed choices during counseling (JoSAA, CSAB, ACPC, etc.).
             
             When a user provides a college name:
-            1. Use Google Search to find the most recent (2025-2026) data.
+            1. Use Google Search to find the most recent (2025-2026) data and the official college website.
             2. Search for: "[College Name] official placement report 2025", "[College Name] JEE Main/GUJCET cutoff", "[College Name] curriculum and academic pressure", and "Student reviews on Quora/YouTube/Reddit".
             3. Synthesize this information into the structured format below.
             
             Output Structure:
             ### 🏛️ [College Full Name & Location]
             **Overview:** A 2-sentence summary of the college's reputation and campus vibe.
+            **Official Website:** https://...
+            
             ---
+            
             ### ✅ Pros & ❌ Cons
             * **Pros:** (List 3 specific strengths)
             * **Cons:** (List 2-3 honest weaknesses)
+            
             ---
+            
             ### 📉 Admission & Cutoffs (2025/26 Expected)
             * **Entrance Exam:** (e.g., JEE Main, GUJCET, BITSAT)
             * **Closing Ranks:** Provide a small table for Computer Science (CSE) and other top branches for General/OBC categories.
+            
             ---
+            
             ### 💰 Placement Data
             * **Highest Package:** ₹[Amount] LPA
             * **Average Package:** ₹[Amount] LPA (Focus on CSE/IT specifically if possible)
             * **Top Recruiters:** (List 4-5 major companies)
+            
             ---
+            
             ### 📚 Curriculum & Academics
             * **Structure:** (Brief overview of the curriculum, e.g., theoretical vs practical focus, updated syllabus)
             * **Academic Pressure:** (Details on grading strictness, attendance policies like 75% rule, and workload)
+            
             ---
+            
             ### 🗣️ Student Reviews & Vibe
             Summarize what students are saying on YouTube, Quora, and Reddit regarding the faculty, mess food, hostels, and extracurriculars. Include specific sentiments or quotes if available.
+            
             ---
+            
             ### 💡 Expert Advice
             Provide expert advice for students considering this college. Write this step-by-step with proper spacing between each point (e.g., use bullet points or numbered lists with clear paragraph breaks). Give actionable guidance on whether they should choose it, what alternatives to consider, and how to prepare.
             
-            Tone: Be objective, helpful, and encouraging. If data is unavailable, state it clearly rather than guessing.`,
+            ---
+            
+            ### 🔗 Similar Colleges
+            List 3-5 similar colleges based on rank, cutoff, and location. Provide ONLY the names separated by commas.
+            
+            Tone: Be objective, helpful, and encouraging. If data is unavailable, state it clearly rather than guessing. Ensure there is a blank line before and after each horizontal rule (---) to maintain proper spacing between topics.`,
           },
         }),
         fetchCollegeImage(activeQuery)
@@ -113,7 +134,25 @@ export default function Home() {
         ?.map((chunk: any) => chunk.web)
         .filter(Boolean) || [];
 
-      setResult({ content: text, sources, imageUrl });
+      // Parse similar colleges
+      const similarSection = text.split("### 🔗 Similar Colleges").pop() || "";
+      const similarColleges = similarSection
+        .split(",")
+        .map(s => s.replace(/[*#\n]/g, "").trim())
+        .filter(s => s.length > 0 && s.length < 100)
+        .slice(0, 5);
+
+      let mainContent = text.split("### 🔗 Similar Colleges")[0].trim();
+
+      // Parse official website
+      let officialWebsite = null;
+      const websiteMatch = mainContent.match(/\*\*Official Website:\*\*\s*(?:\[.*?\]\()?(https?:\/\/[^\s\)]+)(?:\))?/);
+      if (websiteMatch) {
+        officialWebsite = websiteMatch[1];
+        mainContent = mainContent.replace(/\*\*Official Website:\*\*.*/g, "").trim();
+      }
+
+      setResult({ content: mainContent, sources, imageUrl, similarColleges, officialWebsite });
     } catch (err: any) {
       console.error("Search error:", err);
       setError("Failed to fetch college data. Please try again or check your connection.");
@@ -256,15 +295,28 @@ export default function Home() {
                 </div>
               )}
               <div className="p-8 sm:p-10">
+                {result.officialWebsite && (
+                  <div className="mb-8">
+                    <a 
+                      href={result.officialWebsite} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-50 text-indigo-700 font-semibold rounded-xl hover:bg-indigo-100 transition-colors border border-indigo-100"
+                    >
+                      <ExternalLink className="w-5 h-5" />
+                      Visit Official Website
+                    </a>
+                  </div>
+                )}
                 <div className="prose prose-slate max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-a:text-indigo-600 prose-strong:text-slate-900 prose-ul:list-disc prose-li:marker:text-indigo-400">
                   <ReactMarkdown
                     components={{
                       h3: ({ children }) => (
-                        <h3 className="text-2xl font-bold flex items-center gap-2 mt-8 mb-4 text-slate-900 border-b border-slate-100 pb-2">
+                        <h3 className="text-2xl font-bold flex items-center gap-2 mt-12 mb-6 text-slate-900 border-b border-slate-100 pb-3">
                           {children}
                         </h3>
                       ),
-                      hr: () => <hr className="my-8 border-slate-100" />,
+                      hr: () => <hr className="my-12 border-slate-200" />,
                       table: ({ children }) => (
                         <div className="overflow-x-auto my-6 rounded-xl border border-slate-100">
                           <table className="w-full text-sm text-left">
@@ -287,6 +339,33 @@ export default function Home() {
                     {result.content}
                   </ReactMarkdown>
                 </div>
+
+                {/* Similar Colleges Section */}
+                {result.similarColleges.length > 0 && (
+                  <div className="mt-12 pt-8 border-t border-slate-100">
+                    <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+                      <GraduationCap className="w-6 h-6 text-indigo-600" />
+                      Explore Similar Alternatives
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {result.similarColleges.map((college, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setQuery(college);
+                            handleSearch(undefined, college);
+                          }}
+                          className="flex items-center justify-between p-4 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 rounded-2xl text-left transition-all group"
+                        >
+                          <span className="font-medium text-slate-700 group-hover:text-indigo-700 truncate pr-2">
+                            {college}
+                          </span>
+                          <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-500 shrink-0" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Sources Footer */}

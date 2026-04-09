@@ -1,5 +1,5 @@
 {
-  "name": "India College Admission Expert",
+  "name": "College Admission Expert",
   "description": "A data-driven college review platform for 12th-grade PCM students in India, providing placement data, cutoffs, and student vibe checks.",
-  "requestFramePermissions": []
+  "requestFramePermissions": ["microphone"]
 }

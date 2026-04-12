@@ -1,20 +1,47 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# CollegeExpert.in
 
-# Run and deploy your AI Studio app
+This project is a React application built with Vite, Tailwind CSS, and the Gemini API.
 
-This contains everything you need to run your app locally.
+## Deploying to Vercel via GitHub
 
-View your app in AI Studio: https://ai.studio/apps/50a5d3a4-c712-451d-9015-9d5fb51e7938
+It is incredibly easy to deploy this application to Vercel. Follow these steps:
 
-## Run Locally
+1. **Push to GitHub:**
+   - Export this project to a GitHub repository (you can use the AI Studio export feature or push it manually).
 
-**Prerequisites:**  Node.js
+2. **Import to Vercel:**
+   - Go to [Vercel](https://vercel.com/) and log in with your GitHub account.
+   - Click **"Add New..."** > **"Project"**.
+   - Select the GitHub repository you just created.
 
+3. **Configure Environment Variables:**
+   - In the "Configure Project" section, expand the **"Environment Variables"** dropdown.
+   - Add a new variable:
+     - **Name:** `GEMINI_API_KEY`
+     - **Value:** *(Paste your Gemini API key here)*
+   - *Note: You can get a Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey).*
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+4. **Deploy:**
+   - Click the **"Deploy"** button.
+   - Vercel will automatically detect that it's a Vite project, build it, and deploy it!
+
+## Features
+
+- **Vite:** Fast, modern build tool.
+- **React Router:** SPA routing (configured for Vercel via `vercel.json`).
+- **Gemini API:** AI-powered college insights.
+- **Tailwind CSS:** Modern styling.
+
+## Local Development
+
+To run this project locally:
+
+```bash
+npm install
+npm run dev
+```
+
+Make sure to create a `.env` file in the root directory and add your API key:
+```env
+GEMINI_API_KEY=your_api_key_here
+```

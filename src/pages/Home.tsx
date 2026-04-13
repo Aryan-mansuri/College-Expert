@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
-import { Search, GraduationCap, TrendingUp, Building2, MessageSquare, Loader2, AlertCircle, ExternalLink, ChevronRight, Newspaper, Mic, MicOff, Scale, X, Plus, Trophy, Banknote, Target, Map, Wallet, CheckCircle2, XCircle, Users, Network, BookOpen, MapPin, Plane, TrainFront } from "lucide-react";
+import { Search, GraduationCap, TrendingUp, Building2, MessageSquare, Loader2, AlertCircle, ExternalLink, ChevronRight, Newspaper, Mic, MicOff, Scale, X, Plus, Trophy, Banknote, Target, Map, Wallet, CheckCircle2, XCircle, Users, Network, BookOpen, MapPin, Plane, TrainFront, Bus, Train } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -27,33 +27,11 @@ interface CompareData {
   summary: string;
 }
 
-const fetchCollegeImage = async (searchQuery: string) => {
-  try {
-    const searchRes = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchQuery + " institute engineering india")}&utf8=&format=json&origin=*`);
-    const searchData = await searchRes.json();
-    if (searchData.query?.search?.length > 0) {
-      const title = searchData.query.search[0].title;
-      const imageRes = await fetch(`https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=pageimages&format=json&pithumbsize=1000&origin=*`);
-      const imageData = await imageRes.json();
-      const pages = imageData.query?.pages;
-      if (pages) {
-        const pageId = Object.keys(pages)[0];
-        if (pages[pageId]?.thumbnail?.source) {
-          return pages[pageId].thumbnail.source;
-        }
-      }
-    }
-  } catch (e) {
-    console.error("Failed to fetch image", e);
-  }
-  return null;
-};
-
 const fetchCollegeLocation = async (collegeName: string) => {
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Find detailed location information and Google Maps URL for the college: ${collegeName}. Return the result strictly as a JSON object with 'address', 'city', 'state', 'pincode', 'nearestAirport' (name and approx distance), 'nearestRailwayStation' (name and approx distance), and 'mapUrl' (valid Google Maps link). Do not include any other text or markdown formatting.`,
+      contents: `Find detailed location information and Google Maps URL for the college: ${collegeName}. Return the result strictly as a JSON object with 'address', 'city', 'state', 'pincode', 'nearestAirport' (name and approx distance), 'nearestRailwayStation' (name and approx distance), 'nearestBusStand' (name and approx distance), 'nearestMetroStation' (name and approx distance, if applicable in the city, otherwise null), and 'mapUrl' (valid Google Maps link). Do not include any other text or markdown formatting.`,
       config: {
         tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",
@@ -66,6 +44,8 @@ const fetchCollegeLocation = async (collegeName: string) => {
             pincode: { type: Type.STRING },
             nearestAirport: { type: Type.STRING },
             nearestRailwayStation: { type: Type.STRING },
+            nearestBusStand: { type: Type.STRING },
+            nearestMetroStation: { type: Type.STRING },
             mapUrl: { type: Type.STRING }
           },
           required: ["address", "city", "state", "pincode", "nearestAirport", "nearestRailwayStation", "mapUrl"]
@@ -85,7 +65,6 @@ const fetchCollegeLocation = async (collegeName: string) => {
 interface CollegeData {
   content: string;
   sources: { title: string; uri: string }[];
-  imageUrl: string | null;
   similarColleges: string[];
   officialWebsite: string | null;
   address?: string | null;
@@ -94,6 +73,8 @@ interface CollegeData {
   pincode?: string | null;
   nearestAirport?: string | null;
   nearestRailwayStation?: string | null;
+  nearestBusStand?: string | null;
+  nearestMetroStation?: string | null;
   mapUrl?: string | null;
 }
 
@@ -605,13 +586,7 @@ export default function Home() {
     }
 
     try {
-      let currentImageUrl: string | null = null;
-      let currentLocation: { address: string, city: string, state: string, pincode: string, nearestAirport: string, nearestRailwayStation: string, mapUrl: string } | null = null;
-
-      fetchCollegeImage(activeQuery).then(url => {
-        currentImageUrl = url;
-        setResult(prev => prev ? { ...prev, imageUrl: url } : null);
-      });
+      let currentLocation: { address: string, city: string, state: string, pincode: string, nearestAirport: string, nearestRailwayStation: string, nearestBusStand?: string, nearestMetroStation?: string, mapUrl: string } | null = null;
 
       fetchCollegeLocation(activeQuery).then(loc => {
         currentLocation = loc;
@@ -623,6 +598,8 @@ export default function Home() {
           pincode: loc?.pincode,
           nearestAirport: loc?.nearestAirport,
           nearestRailwayStation: loc?.nearestRailwayStation,
+          nearestBusStand: loc?.nearestBusStand,
+          nearestMetroStation: loc?.nearestMetroStation,
           mapUrl: loc?.mapUrl 
         } : null);
       });
@@ -791,7 +768,6 @@ export default function Home() {
         setResult({
           content: displayContent,
           sources: allSources,
-          imageUrl: currentImageUrl,
           similarColleges: [],
           officialWebsite,
           address: currentLocation?.address,
@@ -800,6 +776,8 @@ export default function Home() {
           pincode: currentLocation?.pincode,
           nearestAirport: currentLocation?.nearestAirport,
           nearestRailwayStation: currentLocation?.nearestRailwayStation,
+          nearestBusStand: currentLocation?.nearestBusStand,
+          nearestMetroStation: currentLocation?.nearestMetroStation,
           mapUrl: currentLocation?.mapUrl
         });
       }
@@ -1140,19 +1118,6 @@ export default function Home() {
             ref={scrollRef}
           >
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-3xl shadow-xl overflow-hidden">
-              {result.imageUrl && (
-                <div className="w-full h-64 sm:h-80 bg-slate-100 dark:bg-slate-800 relative">
-                  <img 
-                    src={result.imageUrl} 
-                    alt="College Campus" 
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
-                </div>
-              )}
               <div className="p-8 sm:p-10">
                 <div className="flex flex-wrap gap-4 mb-8">
                   {result.officialWebsite && isValidUrl(result.officialWebsite) && (
@@ -1236,7 +1201,7 @@ export default function Home() {
                         </div>
                       </div>
 
-                      <div className="flex flex-col gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {result.nearestAirport && (
                           <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 flex items-center gap-4">
                             <div className="p-2.5 bg-sky-100 dark:bg-sky-900/30 rounded-lg shrink-0">
@@ -1257,6 +1222,30 @@ export default function Home() {
                             <div>
                               <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">Nearest Railway</h4>
                               <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{result.nearestRailwayStation}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {result.nearestBusStand && (
+                          <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 flex items-center gap-4">
+                            <div className="p-2.5 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg shrink-0">
+                              <Bus className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">Nearest Bus Stand</h4>
+                              <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{result.nearestBusStand}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {result.nearestMetroStation && (
+                          <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 flex items-center gap-4">
+                            <div className="p-2.5 bg-purple-100 dark:bg-purple-900/30 rounded-lg shrink-0">
+                              <Train className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">Nearest Metro</h4>
+                              <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{result.nearestMetroStation}</p>
                             </div>
                           </div>
                         )}

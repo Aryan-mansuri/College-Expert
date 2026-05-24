@@ -442,8 +442,8 @@ export default function Home() {
       if (prev.includes(college)) {
         return prev.filter(c => c !== college);
       }
-      if (prev.length >= 3) {
-        alert("You can compare up to 3 colleges at a time.");
+      if (prev.length >= 5) {
+        alert("You can compare up to 5 colleges at a time.");
         return prev;
       }
       return [...prev, college];
@@ -877,7 +877,7 @@ export default function Home() {
               if (query.trim()) setShowSuggestions(true);
             }}
             placeholder="Enter college name (e.g., IIT Bombay, DA-IICT)..."
-            className="block w-full pl-11 pr-36 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
+            className="block w-full pl-11 pr-[160px] sm:pr-[240px] py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
           />
           <div className="absolute right-2 top-2 bottom-2 flex items-center gap-1">
             <button
@@ -891,6 +891,22 @@ export default function Home() {
               title={isListening && listeningTarget === 'query' ? "Stop listening" : "Start voice typing"}
             >
               {isListening && listeningTarget === 'query' ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (query.trim()) {
+                  toggleCompare(query.trim());
+                  setQuery("");
+                  setShowSuggestions(false);
+                }
+              }}
+              disabled={!query.trim()}
+              className="px-3 sm:px-4 h-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+              title="Add to compare"
+            >
+              <Scale className="w-4 h-4" />
+              <span className="hidden sm:inline">Compare</span>
             </button>
             <button
               type="submit"
@@ -1415,7 +1431,7 @@ export default function Home() {
           >
             <div className="flex-1 w-full">
               <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
-                Comparing {compareList.length}/3 Colleges
+                Comparing {compareList.length}/5 Colleges
               </p>
               <div className="flex flex-wrap gap-2">
                 {compareList.map((college, idx) => (

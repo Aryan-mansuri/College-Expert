@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
-import { Search, GraduationCap, TrendingUp, Building2, MessageSquare, Loader2, AlertCircle, ExternalLink, ChevronRight, Newspaper, Mic, MicOff, Scale, X, Plus, Trophy, Banknote, Target, Map, Wallet, CheckCircle2, XCircle, Users, Network, BookOpen, MapPin, Plane, TrainFront, Bus, Train } from "lucide-react";
+import { Search, GraduationCap, TrendingUp, Building2, MessageSquare, Loader2, AlertCircle, ExternalLink, ChevronRight, Newspaper, Mic, MicOff, Scale, X, Plus, Trophy, Banknote, Target, Map, Wallet, CheckCircle2, XCircle, Users, Network, BookOpen, MapPin, Plane, TrainFront, Bus, Train, Heart } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -15,12 +15,11 @@ interface CompareData {
     nirfRanking: string;
     highestPlacement: string;
     averagePlacement: string;
-    csCutoff: string;
+    totalBranches: string;
     campusSize: string;
     fees: string;
     facultyStudentRatio: string;
     alumniNetworkStrength: string;
-    courseDetails: string;
     pros: string[];
     cons: string[];
   }[];
@@ -215,6 +214,34 @@ export default function Home() {
   const [isComparing, setIsComparing] = useState(false);
   const [compareResult, setCompareResult] = useState<CompareData | null>(null);
   const [compareError, setCompareError] = useState<string | null>(null);
+
+  // Wishlist State and Helpers
+  const [searchedCollegeName, setSearchedCollegeName] = useState<string>("");
+  const [wishlist, setWishlist] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem("college_wishlist");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const toggleWishlist = (college: string) => {
+    if (!college) return;
+    const formatted = college.trim();
+    setWishlist(prev => {
+      const updated = prev.includes(formatted)
+        ? prev.filter(c => c !== formatted)
+        : [...prev, formatted];
+      localStorage.setItem("college_wishlist", JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const isInWishlist = (college: string) => {
+    if (!college) return false;
+    return wishlist.includes(college.trim());
+  };
 
   // State Feature State
   const [showStateModal, setShowStateModal] = useState(false);
@@ -460,7 +487,7 @@ export default function Home() {
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Compare the following engineering colleges in India: ${compareList.join(", ")}. 
-        Provide a detailed side-by-side comparison based on key metrics like NIRF Rankings, Highest Placement, Average Placement, CS Cutoff (approx), Total Fees (4 Years), Scholarship Eligibility (Income/Rank criteria), Loan Tie-ups, Campus Size, Faculty-Student Ratio, Number of Branches Offered, Alumni Network Strength, and Specific Course Details. 
+        Provide a detailed side-by-side comparison based on key metrics like NIRF Rankings, Highest Placement, Average Placement, Total Fees (4 Years), Scholarship Eligibility (Income/Rank criteria), Loan Tie-ups, Campus Size, Faculty-Student Ratio, Total Number of Engineering Branches Offered (state only the count, e.g., "14 branches"), and Alumni Network Strength. 
         Also provide a brief summary of which college is better for what.`,
         config: {
           tools: [{ googleSearch: {} }],
@@ -478,16 +505,15 @@ export default function Home() {
                     nirfRanking: { type: Type.STRING },
                     highestPlacement: { type: Type.STRING },
                     averagePlacement: { type: Type.STRING },
-                    csCutoff: { type: Type.STRING },
+                    totalBranches: { type: Type.STRING, description: "Total number of engineering branches offered" },
                     campusSize: { type: Type.STRING },
                     fees: { type: Type.STRING },
                     facultyStudentRatio: { type: Type.STRING },
                     alumniNetworkStrength: { type: Type.STRING },
-                    courseDetails: { type: Type.STRING },
                     pros: { type: Type.ARRAY, items: { type: Type.STRING } },
                     cons: { type: Type.ARRAY, items: { type: Type.STRING } }
                   },
-                  required: ["name", "nirfRanking", "highestPlacement", "averagePlacement", "csCutoff", "campusSize", "fees", "facultyStudentRatio", "alumniNetworkStrength", "courseDetails", "pros", "cons"]
+                  required: ["name", "nirfRanking", "highestPlacement", "averagePlacement", "totalBranches", "campusSize", "fees", "facultyStudentRatio", "alumniNetworkStrength", "pros", "cons"]
                 }
               },
               summary: { type: Type.STRING }
@@ -561,6 +587,7 @@ export default function Home() {
     const activeQuery = overrideQuery || query;
     if (!activeQuery.trim() || cooldown > 0) return;
 
+    setSearchedCollegeName(activeQuery.trim());
     setShowSuggestions(false);
     setLoading(true);
     setError(null);
@@ -612,8 +639,8 @@ export default function Home() {
         1. 🏛️ [College Full Name & Location]
         2. ✅ Pros & ❌ Cons
         3. 📅 Important Dates (Entrance Exams & Syllabus)
-        4. 📉 Admission & Cutoffs (${currentYear} Expected/Latest)
-        5. 🌿 Branches & Cutoffs (Total count and detailed list)
+        4. 📉 Admission & Cutoffs (Category-wise expecting General, OBC, SC, ST, PwD, EWS)
+        5. 🌿 Total Engineering Branches Offered (State only the total count)
         6. 💰 Placement Data (Latest ${currentYear})
         7. 📚 Curriculum & Academics
         8. 🗣️ Student Reviews & Vibe (Positive & Negative)
@@ -630,11 +657,12 @@ export default function Home() {
           When a user provides a college name:
           1. Use Google Search to find the absolute latest (${currentYear}) data and the official college website.
           2. Search for: "[College Name] official placement report ${currentYear}", "[College Name] JEE Main/GUJCET cutoff ${currentYear}", "[College Name] entrance exam application deadline dates ${currentYear}", "[College Name] entrance exam syllabus ${currentYear}", "[College Name] curriculum and academic pressure", "[College Name] scholarships", "[College Name] education loan tie-ups", and "Student reviews on Quora/YouTube/Reddit".
-          3. Synthesize this information into the structured format below.
-          4. CRITICAL: You MUST verify that the Official Website URL is the actual, official domain of the college. 
+          3. CRITICAL - DOUBLE-VERIFICATION (DO TWO TIMES): You must perform a double-verification of all admission and cutoff details to guarantee absolute accuracy. Search and compare the admission criteria and closing ranks for all categories (General, OBC, SC, ST, PwD, EWS) from EXACTLY TWO separate independent reputable sources (e.g., JoSAA/CSAB official statistics, state counseling boards, official college releases). Verify the numbers twice before placing them in the table.
+          4. Synthesize this information into the structured format below.
+          5. CRITICAL: You MUST verify that the Official Website URL is the actual, official domain of the college. 
           In India, official college domains almost always end in .ac.in, .edu.in, .res.in, or .org.in. 
           Do NOT return URLs from third-party portals like shiksha.com, collegedunia.com, careers360.com, or blogs.
-          5. Ensure the Official Website URL is absolute and starts with http:// or https://.
+          6. Ensure the Official Website URL is absolute and starts with http:// or https://.
           
           Output Structure:
           ### 🏛️ [College Full Name & Location]
@@ -657,15 +685,15 @@ export default function Home() {
           
           ---
           
-          ### 📉 Admission & Cutoffs (${currentYear} Expected)
+           ### 📉 Admission & Cutoffs (${currentYear} Expected)
           * **Entrance Exam:** (e.g., JEE Main, GUJCET, BITSAT)
-          * **Closing Ranks:** Provide a small table for Computer Science (CSE) and other top branches for General/OBC categories based on the latest ${currentYear} trends.
+          * **Double-Verified Category-Wise Closing Ranks:** Provide a detailed markdown table showing the expected/latest closing ranks for Computer Science (CSE) and other top branches. This table MUST contain separate columns or rows representing ALL major reservation categories: General/Open, EWS, OBC-NCL, SC, ST, and PwD (or equivalent local/state quota categories). Because accurate cutoffs are critical, you MUST double-verify these closing ranks by cross-referencing them across EXACTLY TWO independent academic/counseling sources to get the precise numbers for each category.
+          * **Verification Status:** Explicitly list the two independent sources used to verify the admission/cutoff numbers (e.g., "Verified twice across JoSAA Counseling Page and College official brochure").
           
           ---
           
-          ### 🌿 Branches & Cutoffs
-          * **Total Branches:** (State the exact total number of engineering branches offered by the college)
-          * **Detailed Branch List:** (Provide a markdown table listing EVERY engineering branch offered by the college. The table must have two columns: 'Branch Name' and 'Approximate Cutoff Rank/Percentile').
+          ### 🌿 Total Engineering Branches Offered
+          * **Total Branches Offered:** State the exact total number of engineering branches offered by the college (e.g., "This college offers a total of 12 engineering branches"). Do not list the specific branches or cutoff details in this section.
           
           ---
           
@@ -877,7 +905,7 @@ export default function Home() {
               if (query.trim()) setShowSuggestions(true);
             }}
             placeholder="Enter college name (e.g., IIT Bombay, DA-IICT)..."
-            className="block w-full pl-11 pr-[160px] sm:pr-[240px] py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
+            className="block w-full pl-11 pr-[210px] sm:pr-[310px] py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
           />
           <div className="absolute right-2 top-2 bottom-2 flex items-center gap-1">
             <button
@@ -891,6 +919,24 @@ export default function Home() {
               title={isListening && listeningTarget === 'query' ? "Stop listening" : "Start voice typing"}
             >
               {isListening && listeningTarget === 'query' ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (query.trim()) {
+                  toggleWishlist(query.trim());
+                }
+              }}
+              disabled={!query.trim()}
+              className={cn(
+                "p-2.5 rounded-xl h-full transition-all flex items-center justify-center cursor-pointer",
+                query.trim() && isInWishlist(query)
+                  ? "bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-200 dark:hover:bg-rose-900/50"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              )}
+              title={query.trim() && isInWishlist(query) ? "Remove from target list" : "Save to target list"}
+            >
+              <Heart className={cn("w-4 h-4 transition-transform duration-200 active:scale-125", query.trim() && isInWishlist(query) && "fill-rose-500 text-rose-500")} />
             </button>
             <button
               type="button"
@@ -959,6 +1005,62 @@ export default function Home() {
           </button>
         </div>
       </motion.div>
+
+      {/* Target Colleges Wishlist Section */}
+      {wishlist.length > 0 && (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-8 mb-12 p-5 bg-gradient-to-r from-rose-50 to-indigo-50 dark:from-rose-950/20 dark:to-indigo-950/20 rounded-2xl border border-rose-100/50 dark:border-rose-900/40 shadow-sm"
+        >
+          <div className="flex items-center justify-between mb-3 border-b border-rose-100/50 dark:border-rose-900/40 pb-2">
+            <div className="flex items-center gap-2">
+              <Heart className="w-5 h-5 text-rose-500 fill-rose-500" />
+              <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 tracking-wide uppercase">
+                My Target Colleges ({wishlist.length})
+              </h3>
+            </div>
+            <button 
+              onClick={() => {
+                if (window.confirm("Are you sure you want to clear your target list?")) {
+                  setWishlist([]);
+                  localStorage.removeItem("college_wishlist");
+                }
+              }}
+              className="text-xs text-rose-600 dark:text-rose-400 font-medium hover:underline cursor-pointer"
+            >
+              Clear All
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {wishlist.map((college, idx) => (
+              <div 
+                key={idx}
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 rounded-xl shadow-xs transition-all group"
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuery(college);
+                    handleSearch(undefined, college);
+                  }}
+                  className="text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 text-left transition-colors cursor-pointer"
+                >
+                  {college}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleWishlist(college)}
+                  className="text-slate-400 hover:text-rose-500 rounded-full hover:bg-rose-50 dark:hover:bg-rose-950/50 p-0.5 transition-colors cursor-pointer"
+                  title="Remove from target list"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       {/* Trending Colleges Section */}
       {!result && !loading && (
@@ -1158,6 +1260,20 @@ export default function Home() {
                       <MapPin className="w-5 h-5" />
                       View on Google Maps
                     </a>
+                  )}
+                  {searchedCollegeName && (
+                    <button 
+                      onClick={() => toggleWishlist(searchedCollegeName)} 
+                      className={cn(
+                        "inline-flex items-center gap-2 px-5 py-2.5 font-semibold rounded-xl transition-all border cursor-pointer",
+                        isInWishlist(searchedCollegeName)
+                          ? "bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-900/50 hover:bg-rose-100 dark:hover:bg-rose-950/50"
+                          : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      )}
+                    >
+                      <Heart className={cn("w-5 h-5 transition-transform duration-200 active:scale-125", isInWishlist(searchedCollegeName) && "fill-rose-500 text-rose-500")} />
+                      {isInWishlist(searchedCollegeName) ? "Saved to Wishlist" : "Save to Wishlist"}
+                    </button>
                   )}
                 </div>
                 <div className="prose prose-slate dark:prose-invert max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-strong:text-slate-900 dark:prose-strong:text-white prose-ul:list-disc prose-li:marker:text-indigo-400">
@@ -1545,63 +1661,53 @@ export default function Home() {
                           </div>
                         ))}
 
-                        {/* CS Cutoff */}
-                        <div className="p-4 flex items-center gap-2 text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
-                          <Target className="w-5 h-5 text-rose-500" /> CS Cutoff
-                        </div>
-                        {compareResult.colleges.map((college, idx) => (
-                          <div key={idx} className="p-4 border-t border-slate-100 dark:border-slate-800 font-semibold text-slate-900 dark:text-white bg-slate-50/50 dark:bg-slate-800/30 flex items-center">
-                            {college.csCutoff}
-                          </div>
-                        ))}
-
                         {/* Campus Size */}
-                        <div className="p-4 flex items-center gap-2 text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800">
+                        <div className="p-4 flex items-center gap-2 text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
                           <Map className="w-5 h-5 text-amber-500" /> Campus Size
                         </div>
                         {compareResult.colleges.map((college, idx) => (
-                          <div key={idx} className="p-4 border-t border-slate-100 dark:border-slate-800 font-semibold text-slate-900 dark:text-white flex items-center">
+                          <div key={idx} className="p-4 border-t border-slate-100 dark:border-slate-800 font-semibold text-slate-900 dark:text-white bg-slate-50/50 dark:bg-slate-800/30 flex items-center">
                             {college.campusSize}
                           </div>
                         ))}
 
                         {/* Fees */}
-                        <div className="p-4 flex items-center gap-2 text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+                        <div className="p-4 flex items-center gap-2 text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800">
                           <Wallet className="w-5 h-5 text-blue-500" /> Fees
                         </div>
                         {compareResult.colleges.map((college, idx) => (
-                          <div key={idx} className="p-4 border-t border-slate-100 dark:border-slate-800 font-semibold text-slate-900 dark:text-white bg-slate-50/50 dark:bg-slate-800/30 flex items-center">
+                          <div key={idx} className="p-4 border-t border-slate-100 dark:border-slate-800 font-semibold text-slate-900 dark:text-white flex items-center">
                             {college.fees}
                           </div>
                         ))}
 
                         {/* Faculty-Student Ratio */}
-                        <div className="p-4 flex items-center gap-2 text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800">
+                        <div className="p-4 flex items-center gap-2 text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
                           <Users className="w-5 h-5 text-purple-500" /> Faculty-Student Ratio
                         </div>
                         {compareResult.colleges.map((college, idx) => (
-                          <div key={idx} className="p-4 border-t border-slate-100 dark:border-slate-800 font-semibold text-slate-900 dark:text-white flex items-center">
+                          <div key={idx} className="p-4 border-t border-slate-100 dark:border-slate-800 font-semibold text-slate-900 dark:text-white bg-slate-50/50 dark:bg-slate-800/30 flex items-center">
                             {college.facultyStudentRatio}
                           </div>
                         ))}
 
                         {/* Alumni Network Strength */}
-                        <div className="p-4 flex items-center gap-2 text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+                        <div className="p-4 flex items-center gap-2 text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800">
                           <Network className="w-5 h-5 text-teal-500" /> Alumni Network
                         </div>
                         {compareResult.colleges.map((college, idx) => (
-                          <div key={idx} className="p-4 border-t border-slate-100 dark:border-slate-800 font-semibold text-slate-900 dark:text-white bg-slate-50/50 dark:bg-slate-800/30 flex items-center">
+                          <div key={idx} className="p-4 border-t border-slate-100 dark:border-slate-800 font-semibold text-slate-900 dark:text-white flex items-center">
                             {college.alumniNetworkStrength}
                           </div>
                         ))}
 
-                        {/* Course Details */}
-                        <div className="p-4 flex items-center gap-2 text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800">
-                          <BookOpen className="w-5 h-5 text-orange-500" /> Course Details
+                        {/* Total Branches Offered */}
+                        <div className="p-4 flex items-center gap-2 text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+                          <BookOpen className="w-5 h-5 text-orange-500" /> Total Branches
                         </div>
                         {compareResult.colleges.map((college, idx) => (
-                          <div key={idx} className="p-4 border-t border-slate-100 dark:border-slate-800 font-semibold text-slate-900 dark:text-white flex items-center">
-                            {college.courseDetails}
+                          <div key={idx} className="p-4 border-t border-slate-100 dark:border-slate-800 font-semibold text-slate-900 dark:text-white bg-slate-50/50 dark:bg-slate-800/30 flex items-center">
+                            {college.totalBranches}
                           </div>
                         ))}
 
